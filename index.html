@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -661,8 +662,41 @@
     line-height: 2;
   }
 
+  /* ─── SENDER INPUT ─── */
+  .sender-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    letter-spacing: 1px;
+  }
+  .sender-input:focus { border-color: var(--teal); box-shadow: 0 0 16px var(--teal-glow); }
+  .sender-input::placeholder { color: var(--text-muted); }
+
+  /* ─── LOG ENTRY ─── */
+  .log-entry {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal);
+    padding: 14px 16px;
+    animation: fadeIn 0.3s ease;
+  }
+  .log-entry-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; flex-wrap: wrap; gap: 6px;
+  }
+  .log-sender { font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--teal); letter-spacing: 1px; }
+  .log-time { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; }
+  .log-preview { font-size: 12px; color: var(--text-secondary); line-height: 1.6; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .log-enc-entry { border-left-color: rgba(255,184,0,0.6); }
+  .log-enc-entry .log-sender { color: var(--warning); }
+
   /* ─── SCROLLBAR ─── */
-  ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); }
   ::-webkit-scrollbar-thumb:hover { background: var(--teal-dim); }
@@ -766,6 +800,9 @@
       <button class="tab-btn" id="tab-how" onclick="switchTab('how')">
         <span class="tab-icon">📡</span> How It Works
       </button>
+      <button class="tab-btn" id="tab-owner" onclick="switchTab('owner')">
+        <span class="tab-icon">👁</span> Owner
+      </button>
     </nav>
 
     <!-- ── ENCRYPT PANEL ── -->
@@ -774,11 +811,9 @@
       <!-- Key Card -->
       <div class="card">
         <div class="card-label">Secret Key — auto-embedded in output</div>
-
         <div class="key-box">
           <div class="key-box-text" id="keyDisplay">Generating...</div>
         </div>
-
         <div class="key-actions">
           <button class="btn btn-outline" id="genBtn" onclick="generateNewKey()">
             <span id="genIcon">⟳</span> Generate New
@@ -789,12 +824,21 @@
         </div>
       </div>
 
+      <!-- Sender name -->
+      <div class="card">
+        <div class="card-label">Your Identity — embedded in message</div>
+        <div class="field-label">Your name (sent with every message)</div>
+        <input type="text" id="encSenderName" class="sender-input" placeholder="Enter your name..." maxlength="80" autocomplete="off" />
+        <div style="margin-top:8px;font-size:10px;color:var(--text-muted);letter-spacing:1px">
+          ⓘ Your name is encrypted inside the message. The recipient will see it when they decrypt.
+        </div>
+      </div>
+
       <!-- Message Card -->
       <div class="card">
         <div class="card-label">Plaintext Message</div>
         <div class="field-label">Enter message to encrypt</div>
         <textarea id="encInput" placeholder="Type your secret message here..." rows="5"></textarea>
-
         <div class="action-row">
           <button class="btn btn-ghost" onclick="document.getElementById('encInput').value='';hideResult('encResult')">✕ Clear</button>
           <button class="btn btn-primary" onclick="doEncrypt()">🔒 Encrypt Message</button>
@@ -827,7 +871,6 @@
         <div class="card-label">Ciphertext Input</div>
         <div class="field-label">Paste encrypted hex string</div>
         <textarea id="decInput" placeholder="Paste your encrypted hex ciphertext here..." rows="6"></textarea>
-
         <div class="action-row">
           <button class="btn btn-ghost" onclick="document.getElementById('decInput').value='';hideDecResult()">✕ Clear</button>
           <button class="btn btn-primary" onclick="doDecrypt()">🔓 Decrypt Message</button>
@@ -838,6 +881,19 @@
       <div id="decError" class="error-box" style="display:none">
         <span>⚠</span>
         <span id="decErrorText">Invalid ciphertext.</span>
+      </div>
+
+      <!-- Sender Banner -->
+      <div id="decSenderBanner" class="result-wrap" style="display:none">
+        <div class="card" style="border-color:rgba(0,212,170,0.4);background:rgba(0,212,170,0.06)">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="font-size:28px">📨</div>
+            <div>
+              <div style="font-size:10px;letter-spacing:3px;color:var(--text-muted);margin-bottom:4px">MESSAGE FROM</div>
+              <div style="font-family:var(--display);font-size:20px;font-weight:900;color:var(--teal);text-shadow:0 0 16px rgba(0,212,170,0.4)" id="decSenderDisplay"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Decrypted Key -->
@@ -979,15 +1035,163 @@
 
     </div>
 
+    <!-- ── OWNER PANEL ── -->
+    <div class="panel" id="panel-owner">
+
+      <!-- Owner lock -->
+      <div id="ownerLock" class="card">
+        <div class="card-label">Owner Access — Restricted</div>
+        <div class="how-body" style="margin-bottom:20px">
+          <p>This panel is restricted to the vault owner. Enter the owner code to view the activity log.</p>
+        </div>
+        <div class="field-label">Owner Code</div>
+        <div class="lock-input-wrap" style="margin-bottom:8px">
+          <input type="password" id="ownerCodeInput" class="lock-input" style="font-size:22px;letter-spacing:8px;text-align:center"
+            placeholder="••••" maxlength="10" autocomplete="off"
+          />
+          <button class="eye-btn" onclick="toggleOwnerEye()">👁</button>
+        </div>
+        <div class="lock-error" id="ownerError" style="margin-bottom:12px"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="unlockOwner()"><span>VERIFY IDENTITY</span></button>
+      </div>
+
+      <!-- Owner dashboard (hidden until unlocked) -->
+      <div id="ownerDash" style="display:none">
+        <div class="card">
+          <div class="card-label">Activity Log</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:11px;color:var(--text-secondary);letter-spacing:1px">
+              All decrypt events recorded in this session
+            </div>
+            <button class="btn btn-ghost" onclick="clearLog()">🗑 Clear Log</button>
+          </div>
+          <div id="activityLog" style="display:flex;flex-direction:column;gap:10px">
+            <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:24px">
+              No activity yet. Decrypted messages will appear here.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Session Summary</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center">
+            <div style="background:var(--bg-input);border:1px solid var(--border);padding:16px">
+              <div style="font-family:var(--display);font-size:28px;color:var(--teal);font-weight:900" id="statTotal">0</div>
+              <div style="font-size:9px;letter-spacing:2px;color:var(--text-muted);margin-top:4px">DECRYPTS</div>
+            </div>
+            <div style="background:var(--bg-input);border:1px solid var(--border);padding:16px">
+              <div style="font-family:var(--display);font-size:28px;color:var(--teal);font-weight:900" id="statSenders">0</div>
+              <div style="font-size:9px;letter-spacing:2px;color:var(--text-muted);margin-top:4px">SENDERS</div>
+            </div>
+            <div style="background:var(--bg-input);border:1px solid var(--border);padding:16px">
+              <div style="font-family:var(--display);font-size:28px;color:var(--teal);font-weight:900" id="statEncrypts">0</div>
+              <div style="font-size:9px;letter-spacing:2px;color:var(--text-muted);margin-top:4px">ENCRYPTS</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:right;margin-top:-8px">
+          <button class="btn btn-ghost" onclick="lockOwner()">🔒 Lock Owner Panel</button>
+        </div>
+      </div>
+
+    </div>
+
   </main>
 </div>
 
 <script>
 // ══════════════════════════════════════════════════════════
-//  PASSCODE
+//  PASSCODE & OWNER
 // ══════════════════════════════════════════════════════════
 const CORRECT_PASSCODE = 'cat123';
+const OWNER_CODE = '6000';
 let secretKey = '';
+let ownerUnlocked = false;
+
+// ── Activity log storage ──
+const activityLog = [];
+let encryptCount = 0;
+
+function logActivity(type, sender, preview) {
+  const now = new Date();
+  const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  activityLog.unshift({ type, sender, preview, time, date: now.toLocaleDateString() });
+  if (type === 'encrypt') encryptCount++;
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('activityLog');
+  if (!el) return;
+  if (activityLog.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:24px">No activity yet.</div>';
+  } else {
+    el.innerHTML = activityLog.map(e => `
+      <div class="log-entry ${e.type === 'encrypt' ? 'log-enc-entry' : ''}">
+        <div class="log-entry-header">
+          <div class="log-sender">${e.type === 'encrypt' ? '🔒 SENT BY: ' + escHtml(e.sender) : '📨 FROM: ' + escHtml(e.sender)}</div>
+          <div class="log-time">${e.date} ${e.time}</div>
+        </div>
+        <div class="log-preview">${escHtml(e.preview)}</div>
+      </div>
+    `).join('');
+  }
+  // Update stats
+  const senders = new Set(activityLog.filter(e=>e.type==='decrypt').map(e=>e.sender.toLowerCase().trim()));
+  const statTotal = document.getElementById('statTotal');
+  const statSenders = document.getElementById('statSenders');
+  const statEncrypts = document.getElementById('statEncrypts');
+  if (statTotal) statTotal.textContent = activityLog.filter(e=>e.type==='decrypt').length;
+  if (statSenders) statSenders.textContent = senders.size;
+  if (statEncrypts) statEncrypts.textContent = encryptCount;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function clearLog() {
+  activityLog.length = 0;
+  encryptCount = 0;
+  renderLog();
+}
+
+function unlockOwner() {
+  const val = document.getElementById('ownerCodeInput').value;
+  const errEl = document.getElementById('ownerError');
+  if (val === OWNER_CODE) {
+    ownerUnlocked = true;
+    document.getElementById('ownerLock').style.display = 'none';
+    document.getElementById('ownerDash').style.display = 'block';
+    renderLog();
+    errEl.textContent = '';
+  } else {
+    errEl.textContent = '⚠ Incorrect owner code.';
+    errEl.classList.remove('shake');
+    void errEl.offsetWidth;
+    errEl.classList.add('shake');
+    document.getElementById('ownerCodeInput').select();
+  }
+}
+
+function lockOwner() {
+  ownerUnlocked = false;
+  document.getElementById('ownerLock').style.display = 'block';
+  document.getElementById('ownerDash').style.display = 'none';
+  document.getElementById('ownerCodeInput').value = '';
+  document.getElementById('ownerError').textContent = '';
+  switchTab('enc');
+}
+
+function toggleOwnerEye() {
+  const inp = document.getElementById('ownerCodeInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+document.getElementById('ownerCodeInput') && document.getElementById('ownerCodeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlockOwner();
+});
 
 function tryUnlock() {
   const val = document.getElementById('passcodeInput').value;
@@ -1026,6 +1230,10 @@ function doLogout() {
   hideDecResult();
   document.getElementById('encInput').value = '';
   document.getElementById('decInput').value = '';
+  document.getElementById('encSenderName').value = '';
+  // lock owner panel
+  lockOwner();
+  switchTab('enc');
 }
 
 function toggleEye() {
@@ -1112,30 +1320,41 @@ function deriveSeedBytes(key) {
   return { seed, sb };
 }
 
-/** Encrypt: returns hex string with embedded key. */
-function encryptMessage(plaintext, key) {
-  // 1. Key length prefix (4-char hex, supports up to 65535 chars)
+/** Encrypt: embeds sender name + message, returns hex string with embedded key.
+ *  Format of plaintext before encrypting: SENDER_LEN(2-hex) + SENDER_BYTES + MSG_BYTES
+ */
+function encryptMessage(plaintext, key, senderName) {
+  // 1. Key length prefix (4-char hex)
   const lenHex = key.length.toString(16).padStart(4, '0');
 
-  // 2. Encrypt the key bytes with the derived seed
+  // 2. Encrypt the key bytes with derived seed
   const { seed } = deriveSeedBytes(key);
   const keyBytes    = strToBytes(key);
   const encKeyBytes = xorTransformBytes(keyBytes, seed);
   const encKeyHex   = bytesToHex(encKeyBytes);
 
-  // 3. Encrypt the message bytes with the key bytes
+  // 3. Build payload: [2-hex sender byte-len][sender bytes][message bytes]
+  const senderBytes = strToBytes(senderName || '');
   const msgBytes    = strToBytes(plaintext);
-  const encMsgBytes = xorTransformBytes(msgBytes, keyBytes);
-  const encMsgHex   = bytesToHex(encMsgBytes);
+  const senderLenHex = senderBytes.length.toString(16).padStart(2, '0'); // up to 255 bytes
 
-  return lenHex + encKeyHex + encMsgHex;
+  // Combine: senderLen(1 byte as 2 hex) + senderBytes + msgBytes
+  const combined = new Uint8Array(1 + senderBytes.length + msgBytes.length);
+  combined[0] = senderBytes.length;
+  combined.set(senderBytes, 1);
+  combined.set(msgBytes, 1 + senderBytes.length);
+
+  // 4. Encrypt combined payload
+  const encCombined = xorTransformBytes(combined, keyBytes);
+  const encHex      = bytesToHex(encCombined);
+
+  return lenHex + encKeyHex + encHex;
 }
 
-/** Decrypt: returns {message, key} or throws. */
+/** Decrypt: returns {message, key, sender} or throws. */
 function decryptMessage(cipherHex) {
   cipherHex = cipherHex.trim();
 
-  // Validate hex
   if (!/^[0-9a-fA-F]+$/.test(cipherHex))
     throw new Error('Not valid hex. Check for extra whitespace or corrupted characters.');
   if (cipherHex.length < 12)
@@ -1153,41 +1372,42 @@ function decryptMessage(cipherHex) {
 
   const encKeyBytes = hexToBytes(cipherHex.slice(4, 4 + keyHexLen));
 
-  // 3. Recover key by trying all 256 possible seed bytes
-  //    We work entirely in byte space — no String.fromCharCode on raw cipher bytes.
+  // 3. Recover key by trying all 256 seed bytes
   let recoveredKey = null;
   for (let sb = 0; sb < 256; sb++) {
     const seed = new Uint8Array(16);
     for (let i = 0; i < 16; i++) seed[i] = (sb + i * 13) & 0xFF;
-
     const candidateBytes = xorTransformBytes(encKeyBytes, seed);
     const candidate = bytesToStr(candidateBytes);
-
-    // Every character of a valid key must be in KEY_ALPHABET
     if ([...candidate].every(c => KEY_ALPHABET.includes(c))) {
-      // Cross-verify: re-derive seedByte from this candidate; must match sb
       const verifySB = strToBytes(candidate).reduce((acc, b) => acc + b, 0) & 0xFF;
-      if (verifySB === sb) {
-        recoveredKey = candidate;
-        break;
-      }
+      if (verifySB === sb) { recoveredKey = candidate; break; }
     }
   }
 
   if (!recoveredKey)
     throw new Error('Could not recover the encryption key. The ciphertext may be corrupted or tampered.');
 
-  // 4. Decrypt the message — byte arrays all the way
-  const msgHex = cipherHex.slice(4 + keyHexLen);
-  if (msgHex.length === 0 || msgHex.length % 2 !== 0)
-    throw new Error('Message payload is missing or has an odd length.');
+  // 4. Decrypt combined payload
+  const payloadHex   = cipherHex.slice(4 + keyHexLen);
+  if (payloadHex.length === 0 || payloadHex.length % 2 !== 0)
+    throw new Error('Payload is missing or has an odd length.');
 
-  const encMsgBytes = hexToBytes(msgHex);
+  const encPayload  = hexToBytes(payloadHex);
   const keyBytes    = strToBytes(recoveredKey);
-  const msgBytes    = xorTransformBytes(encMsgBytes, keyBytes);
+  const decPayload  = xorTransformBytes(encPayload, keyBytes);
+
+  // 5. Extract sender and message from payload
+  const senderLen = decPayload[0];
+  if (1 + senderLen > decPayload.length)
+    throw new Error('Payload sender length field is corrupted.');
+
+  const senderBytes = decPayload.slice(1, 1 + senderLen);
+  const msgBytes    = decPayload.slice(1 + senderLen);
+  const sender      = bytesToStr(senderBytes);
   const message     = bytesToStr(msgBytes);
 
-  return { message, key: recoveredKey };
+  return { message, key: recoveredKey, sender };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1195,7 +1415,7 @@ function decryptMessage(cipherHex) {
 // ══════════════════════════════════════════════════════════
 
 function switchTab(name) {
-  ['enc','dec','how'].forEach(t => {
+  ['enc','dec','how','owner'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
     document.getElementById(`panel-${t}`).classList.toggle('active', t === name);
   });
@@ -1207,20 +1427,36 @@ function hideResult(id) {
 }
 
 function hideDecResult() {
+  hideResult('decSenderBanner');
   hideResult('decKeyResult');
   hideResult('decMsgResult');
   hideResult('decError');
 }
 
 function doEncrypt() {
-  const msg = document.getElementById('encInput').value;
+  const msg    = document.getElementById('encInput').value;
+  const sender = document.getElementById('encSenderName').value.trim();
+
+  if (!sender) {
+    document.getElementById('encSenderName').focus();
+    document.getElementById('encSenderName').style.borderColor = 'var(--danger)';
+    document.getElementById('encSenderName').style.boxShadow  = '0 0 12px rgba(255,61,110,0.2)';
+    setTimeout(() => {
+      document.getElementById('encSenderName').style.borderColor = '';
+      document.getElementById('encSenderName').style.boxShadow  = '';
+    }, 2000);
+    alert('Please enter your name before encrypting.');
+    return;
+  }
   if (!msg) { alert('Please enter a message to encrypt.'); return; }
+
   try {
-    const result = encryptMessage(msg, secretKey);
+    const result = encryptMessage(msg, secretKey, sender);
     document.getElementById('encOutput').textContent = result;
     const wrap = document.getElementById('encResult');
     wrap.style.display = 'block';
     setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    logActivity('encrypt', sender, msg);
   } catch(e) {
     alert('Encryption error: ' + e.message);
   }
@@ -1232,15 +1468,21 @@ function doDecrypt() {
   if (!hex) { alert('Please paste a ciphertext to decrypt.'); return; }
 
   try {
-    const { message, key } = decryptMessage(hex);
+    const { message, key, sender } = decryptMessage(hex);
+
+    // Show sender banner
+    document.getElementById('decSenderDisplay').textContent = sender || '(anonymous)';
+    document.getElementById('decSenderBanner').style.display = 'block';
 
     document.getElementById('decKeyDisplay').textContent  = key;
     document.getElementById('decOutput').textContent      = message;
     document.getElementById('decKeyResult').style.display = 'block';
     document.getElementById('decMsgResult').style.display = 'block';
 
+    logActivity('decrypt', sender || '(anonymous)', message);
+
     setTimeout(() => {
-      document.getElementById('decKeyResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document.getElementById('decSenderBanner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
   } catch(e) {
     document.getElementById('decErrorText').textContent = e.message;
